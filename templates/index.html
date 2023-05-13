@@ -2,130 +2,34 @@
 <html>
 <head>
     <title>Email Timer</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f2f2f2;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #fff;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        form {
-            display: flex;
-            margin-bottom: 20px;
-        }
-
-        label {
-            margin-right: 10px;
-            line-height: 32px;
-        }
-
-        textarea {
-            flex: 1;
-            padding: 5px;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-            resize: vertical;
-        }
-
-        button[type="submit"] {
-            padding: 5px 10px;
-            background-color: #4CAF50;
-            color: #fff;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-
-        th {
-            background-color: #4CAF50;
-            color: #fff;
-        }
-
-        td:last-child {
-            text-align: center;
-        }
-
-        a {
-            color: #4CAF50;
-            text-decoration: none;
-            margin-right: 10px;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-        .message {
-            padding: 10px;
-            margin-bottom: 20px;
-            border: 1px solid;
-            border-radius: 3px;
-        }
-
-        .success {
-            background-color: #d4edda;
-            border-color: #c3e6cb;
-            color: #155724;
-        }
-
-        .error {
-            background-color: #f8d7da;
-            border-color: #f5c6cb;
-            color: #721c24;
-        }
-    </style>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
         function formatTime(seconds) {
-            var minutes = Math.floor(seconds / 60);
-            var remainingSeconds = seconds % 60;
-            return ('0' + minutes).slice(-3) + ':' + ('0' + remainingSeconds).slice(-2);
-        }
-        function startCountdown(element, seconds, actionCell) {
-            if (seconds <= 0) {
-                element.textContent = 'Ready';
-                element.classList.remove('InUse');
-                actionCell.innerHTML = '<a href="' + actionCell.getAttribute('data-start-url') + '">Start Timer</a> <a href="' + actionCell.getAttribute('data-delete-url') + '">Delete</a>';
-                return;
-            }
-
-            element.textContent = formatTime(seconds);
-            setTimeout(function() {
-                startCountdown(element, seconds - 1, actionCell);
-            }, 1000);
+            let hours = Math.floor(seconds / 3600);
+            let minutes = Math.floor((seconds % 3600) / 60);
+            let remainingSeconds = seconds % 60;
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
         }
 
         function updateTimers() {
-            var timers = document.querySelectorAll('.timer');
-            timers.forEach(function(timer) {
-                var endTime = parseInt(timer.getAttribute('data-end-time'));
-                if (endTime > 0) {
-                    var currentTime = Math.floor(new Date().getTime() / 1000);
-                    var remainingSeconds = endTime - currentTime;
-                    var actionCell = timer.parentElement.querySelector('.actions');
-                    startCountdown(timer, remainingSeconds, actionCell);
+            $('.timer').each(function() {
+                let endTime = parseInt($(this).data('end-time'));
+                let currentTime = Math.floor(Date.now() / 1000);
+                let timeLeft = endTime - currentTime;
+                if (timeLeft > 0) {
+                    $(this).text(formatTime(timeLeft));
+                } else {
+                    $(this).text('00:00:00');
+                    $(this).siblings('.status').text('Ready');
+                    $(this).siblings('.actions').find('.start-timer').show();
                 }
             });
         }
 
-        window.addEventListener('DOMContentLoaded', function() {
-            updateTimers();
+        $(document).ready(function() {
             setInterval(updateTimers, 1000);
         });
     </script>
@@ -135,36 +39,40 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         {% for category, message in messages %}
-        <div class="message {{ category }}">{{ message }}</div>
+        <div class="alert alert-{{ category }}">{{ message }}</div>
         {% endfor %}
         {% endif %}
         {% endwith %}
-        <a href="{{ url_for('logout') }}">Logout</a>
-        <form method="POST">
-            <label for="email">Add Email Addresses (comma, space, or line separated):</label>
-            <textarea name="email" rows="4" required></textarea>
-            <button type="submit">Add</button>
+        <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+        <form method="POST" action="{{ url_for('index') }}">
+            <div class="form-group">
+                <label for="email">Enter email addresses (separated by commas, semicolons, or spaces):</label>
+                <textarea class="form-control" name="email" rows="3" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Email</button>
         </form>
-        <table>
+        <table class="table">
             <thead>
                 <tr>
-                    <th>Email Address</th>
+                    <th>Email</th>
                     <th>Status</th>
-                    <th>Action</th>
+                    <th>Time Left</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for email_timer in email_timers %}
                 <tr>
-                    <td>{{ email_timer['email'] }}</td>
-                    <td class="timer {{ email_timer['status'] }}" data-end-time="{{ email_timer['end_time'] if email_timer['status'] == 'InUse' else 0 }}">
-                        {{ email_timer['status'] }}
-                    </td>
-                    <td class="actions" data-start-url="{{ url_for('start_timer', email_timer_index=loop.index0) }}" data-delete-url="{{ url_for('delete_timer', email_timer_index=loop.index0) }}">
-                        {% if email_timer['status'] == "Ready" %}
-                        <a href="{{ url_for('start_timer', email_timer_index=loop.index0) }}">Start Timer</a>
+                    <td>{{ email_timer.email }}</td>
+                    <td class="status">{{ email_timer.status }}</td>
+                    <td class="timer" data-end-time="{{ email_timer.end_time }}"></td>
+                    <td class="actions">
+                        {% if email_timer.status == 'Ready' %}
+                        <a href="{{ url_for('start_timer', email_timer_index=loop.index0) }}" class="btn btn-primary start-timer">Start Timer</a>
+                        {% else %}
+                        <a href="{{ url_for('start_timer', email_timer_index=loop.index0) }}" class="btn btn-primary start-timer" style="display:none;">Start Timer</a>
                         {% endif %}
-                        <a href="{{ url_for('delete_timer', email_timer_index=loop.index0) }}">Delete</a>
+                        <a href="{{ url_for('delete_timer', email_timer_index=loop.index0) }}" class="btn btn-danger">Delete</a>
                     </td>
                 </tr>
                 {% endfor %}
