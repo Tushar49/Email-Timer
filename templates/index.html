@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Email Timer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        form {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        label {
+            margin-right: 10px;
+            line-height: 32px;
+        }
+
+        textarea {
+            flex: 1;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            resize: vertical;
+        }
+
+        button[type="submit"] {
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #4CAF50;
+            color: #fff;
+        }
+
+        td:last-child {
+            text-align: center;
+        }
+
+        a {
+            color: #4CAF50;
+            text-decoration: none;
+            margin-right: 10px;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+        .message {
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid;
+            border-radius: 3px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+    <script>
+        function formatTime(seconds) {
+            var minutes = Math.floor(seconds / 60);
+            var remainingSeconds = seconds % 60;
+            return ('0' + minutes).slice(-3) + ':' + ('0' + remainingSeconds).slice(-2);
+        }
+        function startCountdown(element, seconds, actionCell) {
+            if (seconds <= 0) {
+                element.textContent = 'Ready';
+                element.classList.remove('InUse');
+                actionCell.innerHTML = '<a href="' + actionCell.getAttribute('data-start-url') + '">Start Timer</a> <a href="' + actionCell.getAttribute('data-delete-url') + '">Delete</a>';
+                return;
+            }
+
+            element.textContent = formatTime(seconds);
+            setTimeout(function() {
+                startCountdown(element, seconds - 1, actionCell);
+            }, 1000);
+        }
+
+        function updateTimers() {
+            var timers = document.querySelectorAll('.timer');
+            timers.forEach(function(timer) {
+                var endTime = parseInt(timer.getAttribute('data-end-time'));
+                if (endTime > 0) {
+                    var currentTime = Math.floor(new Date().getTime() / 1000);
+                    var remainingSeconds = endTime - currentTime;
+                    var actionCell = timer.parentElement.querySelector('.actions');
+                    startCountdown(timer, remainingSeconds, actionCell);
+                }
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', function() {
+            updateTimers();
+            setInterval(updateTimers, 1000);
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="message {{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+        <a href="{{ url_for('logout') }}">Logout</a>
+        <form method="POST">
+            <label for="email">Add Email Addresses (comma, space, or line separated):</label>
+            <textarea name="email" rows="4" required></textarea>
+            <button type="submit">Add</button>
+        </form>
+        <table>
+            <thead>
+                <tr>
+                    <th>Email Address</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for email_timer in email_timers %}
+                <tr>
+                    <td>{{ email_timer['email'] }}</td>
+                    <td class="timer {{ email_timer['status'] }}" data-end-time="{{ email_timer['end_time'] if email_timer['status'] == 'InUse' else 0 }}">
+                        {{ email_timer['status'] }}
+                    </td>
+                    <td class="actions" data-start-url="{{ url_for('start_timer', email_timer_index=loop.index0) }}" data-delete-url="{{ url_for('delete_timer', email_timer_index=loop.index0) }}">
+                        {% if email_timer['status'] == "Ready" %}
+                        <a href="{{ url_for('start_timer', email_timer_index=loop.index0) }}">Start Timer</a>
+                        {% endif %}
+                        <a href="{{ url_for('delete_timer', email_timer_index=loop.index0) }}">Delete</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
